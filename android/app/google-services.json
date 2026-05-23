@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "661008712105",
+    "project_id": "college-locker-app",
+    "storage_bucket": "college-locker-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:661008712105:android:6fe167ac96a8ebf81244b8",
+        "android_client_info": {
+          "package_name": "com.mylocker.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKHMLo6TGvzMWbaf__C8tFREKbryRIAkM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
