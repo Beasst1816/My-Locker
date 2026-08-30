@@ -1,21 +1,25 @@
-# Student Locker 🔐
+# Student Locker 🔐 — Digital Gatepass System
 
-A Flutter-based digital locker management system that generates unique QR codes for students using Firebase for authentication and data storage.
+A Flutter-based digital gatepass and locker management system for students, with role-based access control, Firebase-backed authentication, and QR-code verification.
 
 ## 📥 Try It
 
 Download **`mylocker.apk`** from the [Releases](../../releases) tab and sideload it onto an Android device.
 
-> ⚠️ **Note:** This is an early build — not yet production-ready, so expect rough edges and possible bugs.
+> ⚠️ **Note:** This is an early build — not yet production-ready, so expect rough edges and possible bugs. The admin dashboard described below is still in development.
 
 ## 🚀 Features
 
-- **Splash Screen**: Intelligent session management to auto-login returning users.
-- **Secure Authentication**: Firebase Email/Password authentication.
-- **Cloud Database**: Student profiles (Name, Email, Enrollment) stored in Cloud Firestore.
-- **QR Generation**: Unique QR codes generated based on student enrollment numbers for easy scanning.
-- **Persistence**: Local session handling using `shared_preferences`.
-- **Modern UI**: Clean, responsive Material Design interface.
+- **Role-Based Access Control (RBAC):** Two roles — **Student** and **Guard** — each with their own app flow and permissions.
+- **Guard Scanner:** Guards scan a student's generated QR code to validate entry/exit.
+- **Secure Authentication:** Firebase Email/Password authentication.
+- **Cloud Database:** Student profiles (Name, Email, Enrollment) stored in Cloud Firestore.
+- **Atomic Transactions:** Uses Firestore `WriteBatch` operations so entry/exit records stay consistent even under concurrent scans.
+- **QR Generation:** Unique QR codes generated per student enrollment number.
+- **Splash Screen:** Intelligent session management to auto-login returning users.
+- **Persistence:** Local session handling using `shared_preferences`.
+- **Modern UI:** Clean, responsive Material Design interface.
+- 🚧 **Admin Web Dashboard (in progress):** A separate web-based panel for real-time monitoring of entry/exit logs — not yet released.
 
 ## 🛠️ Tech Stack
 
