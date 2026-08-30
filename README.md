@@ -2,6 +2,12 @@
 
 A Flutter-based digital locker management system that generates unique QR codes for students using Firebase for authentication and data storage.
 
+## 📥 Try It
+
+Download **`mylocker.apk`** from the [Releases](../../releases) tab and sideload it onto an Android device.
+
+> ⚠️ **Note:** This is an early build — not yet production-ready, so expect rough edges and possible bugs.
+
 ## 🚀 Features
 
 - **Splash Screen**: Intelligent session management to auto-login returning users.
@@ -16,18 +22,18 @@ A Flutter-based digital locker management system that generates unique QR codes 
 - **Frontend**: Flutter (Dart)
 - **Backend**: Firebase Authentication & Cloud Firestore
 - **Local Storage**: Shared Preferences
-- **Packages**: 
+- **Packages**:
   - `firebase_core`
   - `firebase_auth`
   - `cloud_firestore`
   - `qr_flutter`
   - `shared_preferences`
 
-## ⚙️ Setup & Installation
+## ⚙️ Setup & Installation (Build from Source)
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/mylocker.git
+   git clone https://github.com/Beasst1816/My-Locker.git
    ```
 
 2. **Install dependencies**:
@@ -53,4 +59,4 @@ A Flutter-based digital locker management system that generates unique QR codes 
 
 ## 📝 Author
 
-- **Your Name** - [GitHub Profile](https://github.com/YOUR_USERNAME)
+- **Bhagvan Raval** - [GitHub Profile](https://github.com/Beasst1816)
