@@ -60,13 +60,13 @@ Download **`mylocker.apk`** from the [Releases](../../releases) tab and sideload
 ## 📱 Screenshots
 
 ### Student Dashboard
-![Student QR Screen](lib/assets/student_dashboard.jpg)
+![Student QR Screen](https://raw.githubusercontent.com/Beasst1816/My-Locker/main/lib/assets/student_dashboard.jpg)
 
 ### Guard Dashboard
-![Guard Scanner Panel](lib/assets/guard_dashboard.jpg)
+![Guard Scanner Panel](https://raw.githubusercontent.com/Beasst1816/My-Locker/main/lib/assets/guard_dashboard.jpg)
 
 ### Admin Panel
-![Admin Dashboard](lib/assets/admin_dashboard.png)
+![Admin Dashboard](https://raw.githubusercontent.com/Beasst1816/My-Locker/main/lib/assets/admin_dashboard.png)
 
 ## 📝 Author
 
