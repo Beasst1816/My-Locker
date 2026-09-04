@@ -60,13 +60,13 @@ Download **`mylocker.apk`** from the [Releases](../../releases) tab and sideload
 ## 📱 Screenshots
 
 ### Student Dashboard
-![Student QR Screen](image1)
+![Student QR Screen](lib/assets/student_dashboard.jpg)
 
 ### Guard Dashboard
-![Guard Scanner Panel](image2)
+![Guard Scanner Panel](lib/assets/guard_dashboard.jpg)
 
 ### Admin Panel
-![Admin Dashboard](image3)
+![Admin Dashboard](lib/assets/admin_dashboard.png)
 
 ## 📝 Author
 
