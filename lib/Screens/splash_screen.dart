@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mylocker/Screens/login_screen.dart';
 import 'package:mylocker/Screens/dashboard_screen_student.dart';
 import 'package:mylocker/Screens/guard_dashboard_screen.dart'; // NEW
+import 'package:mylocker/Screens/Admin/admin_dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -39,12 +40,16 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     // Step 4: RBAC restore — send to the correct dashboard
-    if (savedRole == 'guard') {
+
+    if (savedRole == 'admin') {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const GuardDashboardScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+      );
+    } else if (savedRole == 'guard') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const GuardDashboardScreen()),
       );
     } else {
       Navigator.pushReplacement(

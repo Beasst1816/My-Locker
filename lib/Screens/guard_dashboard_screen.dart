@@ -22,7 +22,8 @@ class GuardDashboardScreen extends StatefulWidget {
   /// Returns the document data Map (with 'student_uid' injected
   /// from the document ID), or null if no match found.
   static Future<Map<String, dynamic>?> lookupEnrollment(
-      String enrollmentNumber) async {
+    String enrollmentNumber,
+  ) async {
     final QuerySnapshot result = await FirebaseFirestore.instance
         .collection('users')
         .where('enrollment_number', isEqualTo: enrollmentNumber)
@@ -31,8 +32,7 @@ class GuardDashboardScreen extends StatefulWidget {
 
     if (result.docs.isNotEmpty) {
       final DocumentSnapshot doc = result.docs.first;
-      final Map<String, dynamic> data =
-      doc.data() as Map<String, dynamic>;
+      final Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       // Inject the Firestore document ID so callers have the UID
       // without a second round-trip to the database.
       data['student_uid'] = doc.id;
@@ -72,7 +72,8 @@ class GuardDashboardScreen extends StatefulWidget {
     required String scannedCode,
     required VoidCallback onScanNext,
     required VoidCallback onClose,
-    VoidCallback? onLookupComplete, // ← NEW: nullable, safe to ignore from manual entry
+    VoidCallback?
+    onLookupComplete, // ← NEW: nullable, safe to ignore from manual entry
   }) async {
     try {
       final Map<String, dynamic>? data = await lookupEnrollment(scannedCode);
@@ -87,61 +88,77 @@ class GuardDashboardScreen extends StatefulWidget {
       if (data != null) {
         Vibration.vibrate(duration: 200, amplitude: 255);
 
-        final String studentUid  = data['student_uid']      as String? ?? '';
-        final String fullName    = data['full_name']         as String? ?? 'Unknown';
-        final String enrollment  = data['enrollment_number'] as String? ?? scannedCode;
+        final String studentUid = data['student_uid'] as String? ?? '';
+        final String fullName = data['full_name'] as String? ?? 'Unknown';
+        final String enrollment =
+            data['enrollment_number'] as String? ?? scannedCode;
 
-        _writeScanLog(
-          studentUid:       studentUid,
-          enrollmentNumber: enrollment,
-          studentName:      fullName,
-        );
+        bool logFailed = false;
+        try {
+          await _writeScanLog(
+            studentUid: studentUid,
+            enrollmentNumber: enrollment,
+            studentName: fullName,
+          );
+        } catch (_) {
+          logFailed = true;
+        }
+
+        if (!context.mounted) return;
+
+        if (context.mounted && logFailed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Verified, but the audit log failed to save.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
 
         _showResultDialog(
-          context:           context,
-          isSuccess:         true,
-          fullName:          fullName,
-          enrollmentNumber:  enrollment,
-          onScanNext:        onScanNext,
-          onClose:           onClose,
+          context: context,
+          isSuccess: true,
+          fullName: fullName,
+          enrollmentNumber: enrollment,
+          onScanNext: onScanNext,
+          onClose: onClose,
           isOnScannerScreen: true,
         );
       } else {
         Vibration.vibrate(duration: 200, amplitude: 255);
 
         _showResultDialog(
-          context:           context,
-          isSuccess:         false,
-          onScanNext:        onScanNext,
-          onClose:           onClose,
+          context: context,
+          isSuccess: false,
+          onScanNext: onScanNext,
+          onClose: onClose,
           isOnScannerScreen: true,
         );
       }
-
     } on FirebaseException catch (e) {
       Vibration.vibrate(duration: 200, amplitude: 255);
       onLookupComplete?.call(); // ← Also clear spinner on error paths
       if (context.mounted) {
         _showResultDialog(
-          context:           context,
-          isSuccess:         false,
-          errorMessage:      'Network error: ${e.message ?? 'Could not reach the database.'}',
-          onScanNext:        onScanNext,
-          onClose:           onClose,
+          context: context,
+          isSuccess: false,
+          errorMessage:
+              'Network error: ${e.message ?? 'Could not reach the database.'}',
+          onScanNext: onScanNext,
+          onClose: onClose,
           isOnScannerScreen: true,
         );
       }
-
     } catch (e) {
       Vibration.vibrate(duration: 200, amplitude: 255);
       onLookupComplete?.call(); // ← And on unexpected errors
       if (context.mounted) {
         _showResultDialog(
-          context:           context,
-          isSuccess:         false,
-          errorMessage:      'Unexpected error. Please try again.',
-          onScanNext:        onScanNext,
-          onClose:           onClose,
+          context: context,
+          isSuccess: false,
+          errorMessage: 'Unexpected error. Please try again.',
+          onScanNext: onScanNext,
+          onClose: onClose,
           isOnScannerScreen: true,
         );
       }
@@ -164,25 +181,24 @@ class GuardDashboardScreen extends StatefulWidget {
       context: context,
       barrierDismissible: false,
       builder: (_) => Dialog(
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.all(28.0),
           child: isSuccess
               ? _SuccessDialogContent(
-            fullName: fullName!,
-            enrollmentNumber: enrollmentNumber!,
-            onScanNext: onScanNext,
-            onClose: onClose,
-            isOnScannerScreen: isOnScannerScreen,
-          )
+                  fullName: fullName!,
+                  enrollmentNumber: enrollmentNumber!,
+                  onScanNext: onScanNext,
+                  onClose: onClose,
+                  isOnScannerScreen: isOnScannerScreen,
+                )
               : _FailureDialogContent(
-            message:
-            errorMessage ?? 'Invalid QR Code or Student Not Found.',
-            onScanNext: onScanNext,
-            onClose: onClose,
-            isOnScannerScreen: isOnScannerScreen,
-          ),
+                  message:
+                      errorMessage ?? 'Invalid QR Code or Student Not Found.',
+                  onScanNext: onScanNext,
+                  onClose: onClose,
+                  isOnScannerScreen: isOnScannerScreen,
+                ),
         ),
       ),
     );
@@ -200,12 +216,11 @@ class GuardDashboardScreen extends StatefulWidget {
 
     final DateTime dt = timestamp.toDate();
     final DateTime now = DateTime.now();
-    final DateTime todayMidnight =
-    DateTime(now.year, now.month, now.day);
-    final DateTime yesterdayMidnight =
-    todayMidnight.subtract(const Duration(days: 1));
-    final DateTime dtMidnight =
-    DateTime(dt.year, dt.month, dt.day);
+    final DateTime todayMidnight = DateTime(now.year, now.month, now.day);
+    final DateTime yesterdayMidnight = todayMidnight.subtract(
+      const Duration(days: 1),
+    );
+    final DateTime dtMidnight = DateTime(dt.year, dt.month, dt.day);
     final String timeStr = _formatTime(dt);
 
     if (dtMidnight == todayMidnight) return 'Today at $timeStr';
@@ -248,7 +263,7 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
+        (route) => false,
       );
     }
   }
@@ -271,15 +286,14 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
 
     try {
       final Map<String, dynamic>? data =
-      await GuardDashboardScreen.lookupEnrollment(input);
+          await GuardDashboardScreen.lookupEnrollment(input);
 
       if (!mounted) return;
 
       if (data != null) {
         final String studentUid = data['student_uid'] as String? ?? '';
         final String fullName = data['full_name'] as String? ?? 'Unknown';
-        final String enrollment =
-            data['enrollment_number'] as String? ?? input;
+        final String enrollment = data['enrollment_number'] as String? ?? input;
 
         // Log manual entry verifications too — same audit trail
         GuardDashboardScreen._writeScanLog(
@@ -379,7 +393,8 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '🗑️ Deleted $totalDeleted log(s) older than 30 days.'),
+              '🗑️ Deleted $totalDeleted log(s) older than 30 days.',
+            ),
             backgroundColor: Colors.green.shade700,
           ),
         );
@@ -405,12 +420,11 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Run System Maintenance?'),
         content: const Text(
           'This will permanently delete all scan logs older than '
-              '30 days. This action cannot be undone.',
+          '30 days. This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -426,7 +440,8 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Delete Old Logs'),
           ),
@@ -464,21 +479,21 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
           // Maintenance button — subtle wrench icon
           _isDeleting
               ? const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
-            ),
-          )
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                )
               : IconButton(
-            icon: const Icon(Icons.build_circle_outlined),
-            tooltip: 'Run System Maintenance',
-            onPressed: _confirmMaintenance,
-          ),
+                  icon: const Icon(Icons.build_circle_outlined),
+                  tooltip: 'Run System Maintenance',
+                  onPressed: _confirmMaintenance,
+                ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
@@ -495,7 +510,9 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
             Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 6),
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   border: Border.all(color: Colors.green.shade300),
@@ -504,8 +521,11 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.verified_user_rounded,
-                        size: 16, color: Colors.green.shade700),
+                    Icon(
+                      Icons.verified_user_rounded,
+                      size: 16,
+                      color: Colors.green.shade700,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Guard Access  •  Camera Standby',
@@ -537,8 +557,7 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                   Text(
                     'Camera stays off until you need it,\nsaving battery between scans.',
                     textAlign: TextAlign.center,
-                    style:
-                    TextStyle(fontSize: 13, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -551,7 +570,8 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
               elevation: 6,
               shadowColor: Colors.blue.withOpacity(0.18),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24)),
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(28),
                 child: Column(
@@ -563,43 +583,50 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                         color: const Color(0xFFE8F0FE),
                         borderRadius: BorderRadius.circular(44),
                       ),
-                      child: const Icon(Icons.qr_code_scanner_rounded,
-                          size: 48, color: Color(0xFF1A73E8)),
+                      child: const Icon(
+                        Icons.qr_code_scanner_rounded,
+                        size: 48,
+                        color: Color(0xFF1A73E8),
+                      ),
                     ),
                     const SizedBox(height: 18),
                     const Text(
                       'QR Code Scanner',
                       style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A2E)),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A2E),
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Opens camera for continuous scanning.\nScan multiple students without reopening.',
                       textAlign: TextAlign.center,
-                      style:
-                      TextStyle(fontSize: 13, color: Colors.grey[500]),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                     ),
                     const SizedBox(height: 22),
                     ElevatedButton.icon(
                       onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const ScannerViewScreen()),
+                          builder: (_) => const ScannerViewScreen(),
+                        ),
                       ),
                       icon: const Icon(Icons.camera_alt_rounded),
                       label: const Text(
                         'Open QR Scanner',
                         style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.bold),
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1A73E8),
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 54),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         elevation: 3,
                       ),
                     ),
@@ -615,7 +642,8 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
               elevation: 3,
               shadowColor: Colors.grey.withOpacity(0.12),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24)),
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -623,23 +651,25 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.edit_note_rounded,
-                            color: Colors.orange.shade600),
+                        Icon(
+                          Icons.edit_note_rounded,
+                          color: Colors.orange.shade600,
+                        ),
                         const SizedBox(width: 10),
                         const Text(
                           'Manual Entry',
                           style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A1A2E)),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A2E),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       "Use when a student's screen is cracked or unreadable.",
-                      style:
-                      TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
                     const SizedBox(height: 16),
                     TextField(
@@ -647,51 +677,60 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                       keyboardType: TextInputType.text,
                       textCapitalization: TextCapitalization.characters,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.8),
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.8,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'e.g. EN2024001',
-                        prefixIcon: Icon(Icons.badge_outlined,
-                            color: Colors.orange.shade600),
+                        prefixIcon: Icon(
+                          Icons.badge_outlined,
+                          color: Colors.orange.shade600,
+                        ),
                         filled: true,
                         fillColor: Colors.orange.shade50,
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                                color: Colors.orange.shade200)),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.orange.shade200),
+                        ),
                         focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                                color: Colors.orange.shade400, width: 2)),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Colors.orange.shade400,
+                            width: 2,
+                          ),
+                        ),
                         enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                                color: Colors.orange.shade200)),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.orange.shade200),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
                     _isQuerying
                         ? const Center(
-                      child: CircularProgressIndicator(
-                          color: Color(0xFF1A73E8)),
-                    )
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF1A73E8),
+                            ),
+                          )
                         : ElevatedButton.icon(
-                      onPressed: _handleManualSubmit,
-                      icon: const Icon(Icons.search_rounded),
-                      label: const Text(
-                        'Verify Student',
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange.shade600,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
+                            onPressed: _handleManualSubmit,
+                            icon: const Icon(Icons.search_rounded),
+                            label: const Text(
+                              'Verify Student',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange.shade600,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
                   ],
                 ),
               ),
@@ -702,8 +741,11 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
             // ── Recent Scans header ──────────────────
             Row(
               children: [
-                const Icon(Icons.history_rounded,
-                    color: Color(0xFF1A73E8), size: 22),
+                const Icon(
+                  Icons.history_rounded,
+                  color: Color(0xFF1A73E8),
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Recent Scans',
@@ -716,7 +758,9 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 3),
+                    horizontal: 10,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE8F0FE),
                     borderRadius: BorderRadius.circular(50),
@@ -724,9 +768,10 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                   child: const Text(
                     'Last 50',
                     style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF1A73E8),
-                        fontWeight: FontWeight.w600),
+                      fontSize: 11,
+                      color: Color(0xFF1A73E8),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -739,13 +784,13 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
               stream: _scanLogsStream,
               builder: (context, snapshot) {
                 // State 1: Waiting for first data packet
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),
                       child: CircularProgressIndicator(
-                          color: Color(0xFF1A73E8)),
+                        color: Color(0xFF1A73E8),
+                      ),
                     ),
                   );
                 }
@@ -761,8 +806,10 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline_rounded,
-                            color: Colors.red.shade400),
+                        Icon(
+                          Icons.error_outline_rounded,
+                          color: Colors.red.shade400,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -783,20 +830,23 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border:
-                      Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.document_scanner_outlined,
-                              size: 40, color: Colors.grey.shade300),
+                          Icon(
+                            Icons.document_scanner_outlined,
+                            size: 40,
+                            color: Colors.grey.shade300,
+                          ),
                           const SizedBox(height: 10),
                           Text(
                             'No scans recorded yet.',
                             style: TextStyle(
-                                color: Colors.grey.shade400,
-                                fontSize: 14),
+                              color: Colors.grey.shade400,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
@@ -812,7 +862,8 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                   elevation: 2,
                   shadowColor: Colors.grey.withOpacity(0.1),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -823,25 +874,24 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                       color: Colors.grey.shade100,
                     ),
                     itemBuilder: (context, index) {
-                      final data = docs[index].data()
-                      as Map<String, dynamic>;
+                      final data = docs[index].data() as Map<String, dynamic>;
 
                       final String studentName =
-                          data['student_name'] as String? ??
-                              'Unknown';
+                          data['student_name'] as String? ?? 'Unknown';
                       final String enrollmentNumber =
                           data['enrollment_number'] as String? ?? '—';
 
                       // scanned_at can briefly be null on the
                       // client before the server timestamp resolves
-                      final Timestamp? ts =
-                      data['scanned_at'] as Timestamp?;
+                      final Timestamp? ts = data['scanned_at'] as Timestamp?;
                       final String timeLabel =
-                      GuardDashboardScreen.formatTimestamp(ts);
+                          GuardDashboardScreen.formatTimestamp(ts);
 
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 8),
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
                         leading: CircleAvatar(
                           backgroundColor: const Color(0xFFE8F0FE),
                           child: Text(
@@ -866,7 +916,9 @@ class _GuardDashboardScreenState extends State<GuardDashboardScreen> {
                         subtitle: Text(
                           enrollmentNumber,
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey[500]),
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
                         ),
                         trailing: Text(
                           timeLabel,
@@ -915,20 +967,32 @@ class _SuccessDialogContent extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 68, height: 68,
+          width: 68,
+          height: 68,
           decoration: BoxDecoration(
-              color: Colors.green.shade50, shape: BoxShape.circle),
-          child: Icon(Icons.check_circle_rounded,
-              color: Colors.green.shade600, size: 44),
+            color: Colors.green.shade50,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.check_circle_rounded,
+            color: Colors.green.shade600,
+            size: 44,
+          ),
         ),
         const SizedBox(height: 14),
-        const Text('Access Granted',
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A2E))),
+        const Text(
+          'Access Granted',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1A2E),
+          ),
+        ),
         const SizedBox(height: 4),
-        Text('Student verified successfully',
-            style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+        Text(
+          'Student verified successfully',
+          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+        ),
         const SizedBox(height: 20),
         Container(
           width: double.infinity,
@@ -941,12 +1005,19 @@ class _SuccessDialogContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _InfoRow(icon: Icons.person_rounded, label: 'Full Name',
-                  value: fullName, color: Colors.green.shade700),
+              _InfoRow(
+                icon: Icons.person_rounded,
+                label: 'Full Name',
+                value: fullName,
+                color: Colors.green.shade700,
+              ),
               const SizedBox(height: 10),
-              _InfoRow(icon: Icons.badge_outlined,
-                  label: 'Enrollment No.',
-                  value: enrollmentNumber, color: Colors.green.shade700),
+              _InfoRow(
+                icon: Icons.badge_outlined,
+                label: 'Enrollment No.',
+                value: enrollmentNumber,
+                color: Colors.green.shade700,
+              ),
             ],
           ),
         ),
@@ -955,30 +1026,36 @@ class _SuccessDialogContent extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onScanNext,
             icon: const Icon(Icons.qr_code_scanner_rounded),
-            label: const Text('Scan Next Student',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            label: const Text(
+              'Scan Next Student',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green.shade600,
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 50),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
           const SizedBox(height: 10),
         ],
         OutlinedButton.icon(
           onPressed: onClose,
-          icon: Icon(isOnScannerScreen
-              ? Icons.close_rounded : Icons.check_rounded),
-          label: Text(isOnScannerScreen ? 'Close Scanner' : 'Done',
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.bold)),
+          icon: Icon(
+            isOnScannerScreen ? Icons.close_rounded : Icons.check_rounded,
+          ),
+          label: Text(
+            isOnScannerScreen ? 'Close Scanner' : 'Done',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.grey[700],
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
+            ),
             side: BorderSide(color: Colors.grey.shade300),
           ),
         ),
@@ -1006,20 +1083,33 @@ class _FailureDialogContent extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 68, height: 68,
+          width: 68,
+          height: 68,
           decoration: BoxDecoration(
-              color: Colors.red.shade50, shape: BoxShape.circle),
-          child: Icon(Icons.cancel_rounded,
-              color: Colors.red.shade600, size: 44),
+            color: Colors.red.shade50,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.cancel_rounded,
+            color: Colors.red.shade600,
+            size: 44,
+          ),
         ),
         const SizedBox(height: 14),
-        const Text('Access Denied',
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A2E))),
+        const Text(
+          'Access Denied',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1A2E),
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(message, textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+        ),
         const SizedBox(height: 20),
         Container(
           width: double.infinity,
@@ -1047,30 +1137,36 @@ class _FailureDialogContent extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onScanNext,
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Scan Next Student',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            label: const Text(
+              'Scan Next Student',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 50),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
           const SizedBox(height: 10),
         ],
         OutlinedButton.icon(
           onPressed: onClose,
-          icon: Icon(isOnScannerScreen
-              ? Icons.close_rounded : Icons.check_rounded),
-          label: Text(isOnScannerScreen ? 'Close Scanner' : 'Dismiss',
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.bold)),
+          icon: Icon(
+            isOnScannerScreen ? Icons.close_rounded : Icons.check_rounded,
+          ),
+          label: Text(
+            isOnScannerScreen ? 'Close Scanner' : 'Dismiss',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.grey[700],
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
+            ),
             side: BorderSide(color: Colors.grey.shade300),
           ),
         ),
@@ -1086,8 +1182,10 @@ class _InfoRow extends StatelessWidget {
   final Color color;
 
   const _InfoRow({
-    required this.icon, required this.label,
-    required this.value, required this.color,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
   });
 
   @override
@@ -1099,12 +1197,18 @@ class _InfoRow extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A2E))),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A1A2E),
+              ),
+            ),
           ],
         ),
       ],
